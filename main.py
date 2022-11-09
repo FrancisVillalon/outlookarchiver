@@ -161,6 +161,3 @@ c.grid(row=9,column=0,pady=5,sticky='w')
 
 
 gui.mainloop()
-
-
-# BPNUM_ORDERNUM_EMAILCAT_IDX_EMAILSUBJECT.msg
