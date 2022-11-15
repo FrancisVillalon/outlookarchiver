@@ -2,3 +2,5 @@ venv/
 build/
 deliverable/
 dist/
+archived-mail/
+app.log
