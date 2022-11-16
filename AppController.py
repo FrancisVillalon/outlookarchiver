@@ -1,172 +1,10 @@
-import logging
 import os
 import string
-from tkinter import *
-from tkinter import Text, filedialog, messagebox, ttk
 
 import pandas as pd
 import win32com.client
 
-# * Logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s:%(levelname)s:%(message)s")
-file_handler = logging.FileHandler("app.log")
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
-
-# * Model
-class UserInput:
-    def __init__(self, exportFolder, bpNum, orderNum, emailCat):
-        self.exportFolder = exportFolder
-        self.bpNum = bpNum
-        self.orderNum = orderNum
-        self.emailCat = emailCat
-
-    @property
-    def exportFolder(self):
-        return self.__exportFolder
-
-    @property
-    def bpNum(self):
-        return self.__bpNum
-
-    @property
-    def orderNum(self):
-        return self.__orderNum
-
-    @property
-    def emailCat(self):
-        return self.__emailCat
-
-    @exportFolder.setter
-    def exportFolder(self, value):
-        if len(value) == 0:
-            raise ValueError(f"Please define Export Folder")
-        elif os.path.exists(value):
-            self.__exportFolder = value
-        else:
-            raise ValueError(f"Export Folder does not exist.")
-
-    @bpNum.setter
-    def bpNum(self, value):
-        self.__bpNum = value
-
-    @orderNum.setter
-    def orderNum(self, value):
-        self.__orderNum = value
-
-    @emailCat.setter
-    def emailCat(self, value):
-        self.__emailCat = value
-
-
-# * View
-class AppView(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-
-        # * vars
-        self.folderPath = StringVar()
-        self.smBool = BooleanVar()
-        self.emailCat = StringVar()
-        self.emailCategoryList = ["cat1", "cat2", "cat3"]
-
-        # * default vals
-        self.emailCat.set(self.emailCategoryList[0])
-        self.folderPath.set(os.path.join(os.getcwd(), "archived-mail"))
-
-        # export path browser
-        self.exportFolder_browser = Button(
-            self, text="Browse Folder", command=self.getFolderPath
-        )
-        self.exportFolder_browser.grid(row=0, column=2, sticky="w", padx=5, pady=5)
-
-        # export path entry field
-        self.exportFolder_entry_label = Label(self, text="Export Folder: ")
-        self.exportFolder_entry_label.grid(row=0, column=0, sticky="w")
-        self.exportFolder_entry = Entry(self, textvariable=self.folderPath)
-        self.exportFolder_entry.grid(row=0, column=1, ipadx=100)
-
-        # progress bar
-        self.pb = ttk.Progressbar(
-            self, orient=HORIZONTAL, mode="determinate", length=100
-        )
-        self.pb.grid(row=3, column=1, columnspan=3, sticky="ew", padx=(0, 5))
-        self.pb_label = Label(self, text="Task Progress: ").grid(
-            row=3, column=0, sticky="w"
-        )
-
-        # supress messages
-        self.supress_msgs_label = Label(self, text="Options: ").grid(
-            row=4, column=0, sticky="w"
-        )
-        self.supress_msgs = Checkbutton(
-            self, text="Supress messages", variable=self.smBool
-        ).grid(row=4, column=1, sticky="w")
-
-        # custom folder name
-        self.CustomFname = Entry(self)
-        self.CustomFname.grid(row=5, column=1, pady=5, sticky="w")
-        self.CustomFname_label = Label(self, text="Create New Folder: ").grid(
-            row=5, column=0, sticky="w"
-        )
-
-        # bpnum
-        self.bpNum = Entry(self)
-        self.bpNum.grid(row=6, column=1, pady=5, sticky="w")
-        self.bpNum_label = Label(self, text="Enter BP Num: ").grid(
-            row=6, column=0, sticky="w"
-        )
-
-        # ordernum
-        self.orderNum = Entry(self)
-        self.orderNum.grid(row=7, column=1, pady=5, sticky="w")
-        self.orderNum_label = Label(self, text="Enter Order Num: ").grid(
-            row=7, column=0, sticky="w"
-        )
-
-        # emailcat
-        self.emailCat_menu = OptionMenu(self, self.emailCat, *self.emailCategoryList)
-        self.emailCat_label = Label(self, text="Enter Email Category: ").grid(
-            row=8, column=0, sticky="w"
-        )
-        self.emailCat_menu.grid(row=8, column=1, pady=5, sticky="w")
-
-        # execute btn
-        self.executeBtn = Button(self, text="Export", command=self.exportEmails_clicked)
-        self.executeBtn.grid(row=9, column=0, pady=5, sticky="w")
-
-        # controller
-        self.controller = None
-
-    def setController(self, controller):
-        self.controller = controller
-
-    def getFolderPath(self):
-        folder_selected = filedialog.askdirectory()
-        self.folderPath.set(folder_selected)
-
-    def exportEmails_clicked(self):
-        if self.controller:
-            self.controller.exportEmails(
-                self.folderPath.get(),
-                self.smBool.get(),
-                self.CustomFname.get(),
-                self.bpNum.get(),
-                self.orderNum.get(),
-                self.emailCat.get(),
-            )
-
-    def showError(self, msg):
-        messagebox.showerror("Error", msg)
-
-    def showInfo(self, msg):
-        messagebox.showinfo("Info", msg)
-
-    def showConfirm(self, msg):
-        ans = messagebox.askyesno("Confirm", msg)
-        return ans
+from AppLogger import logger
 
 
 # * Controller
@@ -194,10 +32,6 @@ class AppController:
                         folderPath = os.getcwd()
                         self.view.folderPath.set(folderPath)
 
-            # * Set progress bar to 0 every click
-            self.view.pb["value"] = 0
-            self.view.update_idletasks()
-
             # * vars
             model = self.model(folderPath, bpNum, orderNum, emailCat)
             selectedMail = self.obj.ActiveExplorer().Selection
@@ -224,20 +58,20 @@ class AppController:
                 masterListDf = pd.DataFrame(None, columns=masterListColumns)
                 atchListDf = pd.DataFrame(None, columns=atchListColumns)
             else:
-                masterListDf = pd.read_excel(masterListPath, sheet_name="Sheet1")
+                masterListDf = pd.read_excel(
+                    masterListPath, sheet_name="Sheet1", engine="openpyxl"
+                )
                 atchListDf = pd.read_excel(
-                    os.path.join(masterListPath), sheet_name="Sheet2"
+                    os.path.join(masterListPath), sheet_name="Sheet2", engine="openpyxl"
                 )
             if masterListDf.empty:
                 offsetidx = 0
             else:
                 offsetidx = masterListDf["Email Archive No."].values[-1]
 
-            # * Define attachment list
-
             # * Check for selected emails
             if not numEmails > 0:
-                messagebox.showerror("Error", "No emails selected in outlook.")
+                self.view.showError("Error", "No emails selected in outlook.")
 
             # * Check for supress message
             if smBool:
@@ -313,7 +147,7 @@ class AppController:
                                         [atch.FileName for atch in email.Attachments]
                                     )
                                 ),
-                                emailPathMsg,
+                                emailPathMsg.replace("/", "\\"),
                                 emailId,
                             ]
                         email.SaveAs(emailPathMsg + ".msg", 3)
@@ -331,9 +165,9 @@ class AppController:
                             """
                         )
                         # * Convert msg to pdf
-                        email.SaveAs(emailPathMsg + ".doc", 4)
+                        email.SaveAs(emailPathMsg + ".mht", 10)
                         self.MsgToPDF(
-                            emailPathMsg + ".doc",
+                            emailPathMsg + ".mht",
                             folderPathChild,
                             emailFullFileName + ".pdf",
                         )
@@ -348,7 +182,7 @@ class AppController:
                             atchListDf.loc[atchListDf.shape[0]] = [
                                 emailGroup,
                                 f"A{idx+1}",
-                                atchPathMsg,
+                                atchPathMsg.replace("/", "\\"),
                             ]
                         # * update progress bar
                         if (idx + 1) != numEmails or numEmails == 1:
@@ -356,24 +190,16 @@ class AppController:
                         else:
                             self.view.pb["value"] = 100
                         self.view.update_idletasks()
-
-                        # * Update and save masterlist
-                        with pd.ExcelWriter(
-                            masterListPath, engine="xlsxwriter"
-                        ) as writer:
-                            masterListDf.to_excel(
-                                writer, index=False, sheet_name="Sheet1"
-                            )
-                            atchListDf.to_excel(
-                                writer, index=False, sheet_name="Sheet2"
-                            )
-                        logger.info(f"Masterlist updated and saved @ {masterListPath} ")
-
                     except Exception as e:
                         logger.warning(
                             f"Failed to save email {idx+offsetidx} due to Exception =  {e} @ {e.__traceback__.tb_lineno}"
                         )
                         continue
+                # * Update and save masterlist
+                with pd.ExcelWriter(masterListPath, engine="openpyxl") as writer:
+                    masterListDf.to_excel(writer, index=False, sheet_name="Sheet1")
+                    atchListDf.to_excel(writer, index=False, sheet_name="Sheet2")
+                    logger.info(f"Masterlist updated and saved @ {masterListPath} ")
                 # ? Success
                 logger.info(
                     f"Archive operation successful for {numEmails} emails @ {folderPath}"
@@ -416,22 +242,3 @@ class AppController:
         finally:
             doc.Close()
             os.remove(docpath)
-
-
-# * Main
-class App(Tk):
-    def __init__(self):
-        super().__init__()
-        self.title("Email Archive Tool")
-        self.iconbitmap(os.path.join(os.getcwd(), "assets/email.ico"))
-
-        view = AppView(self)
-        view.grid(row=0, column=0, padx=10, pady=10)
-
-        controller = AppController(UserInput, view)
-        view.setController(controller)
-
-
-if __name__ == "__main__":
-    app = App()
-    app.mainloop()

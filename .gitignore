@@ -4,3 +4,4 @@ deliverable/
 dist/
 archived-mail/
 app.log
+__pycache__/
