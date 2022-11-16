@@ -191,10 +191,6 @@ class AppController:
                         folderPath = os.getcwd()
                         self.view.folderPath.set(folderPath)
 
-            # * Set progress bar to 0 every click
-            # self.view.pb["value"] = 0
-            # self.view.update_idletasks()
-
             # * vars
             model = self.model(folderPath, bpNum, orderNum, emailCat)
             selectedMail = self.obj.ActiveExplorer().Selection
@@ -310,7 +306,7 @@ class AppController:
                                         [atch.FileName for atch in email.Attachments]
                                     )
                                 ),
-                                emailPathMsg,
+                                emailPathMsg.replace("/", "\\"),
                                 emailId,
                             ]
                         email.SaveAs(emailPathMsg + ".msg", 3)
@@ -345,7 +341,7 @@ class AppController:
                             atchListDf.loc[atchListDf.shape[0]] = [
                                 emailGroup,
                                 f"A{idx+1}",
-                                atchPathMsg,
+                                atchPathMsg.replace("/", "\\"),
                             ]
                         # * update progress bar
                         if (idx + 1) != numEmails or numEmails == 1:
@@ -412,7 +408,7 @@ class App(Tk):
     def __init__(self):
         super().__init__()
         self.title("Email Archive Tool")
-        self.iconbitmap(os.path.join(os.getcwd(), "assets/email.ico"))
+        # self.iconbitmap(os.path.join(os.getcwd(), "assets/email.ico"))
 
         view = AppView(self)
         view.grid(row=0, column=0, padx=10, pady=10)

@@ -123,7 +123,7 @@ class AppController:
                             + emailRecieveFileName
                         )
                         emailPathMsg = os.path.join(folderPathChild, emailFullFileName)
-
+                        emailAttachmentNum = len(list(email.Attachments))
                         # * archive email
                         if not masterListDf.loc[
                             masterListDf["EntryID"] == emailId
@@ -133,6 +133,7 @@ class AppController:
                             )
                             continue
                         else:
+                            logger.info(f"Archive request for {emailId} initiated.")
                             masterListDf.loc[masterListDf.shape[0]] = [
                                 orderNum,
                                 bpNum,
@@ -141,7 +142,7 @@ class AppController:
                                 emailSubject,
                                 emailReceive,
                                 emailGroup,
-                                len(list(email.Attachments)),
+                                emailAttachmentNum,
                                 (
                                     " , ".join(
                                         [atch.FileName for atch in email.Attachments]
@@ -165,13 +166,23 @@ class AppController:
                             """
                         )
                         # * Convert msg to pdf
+                        logger.info(f"Initiating conversion of {emailId} to PDF")
                         email.SaveAs(emailPathMsg + ".mht", 10)
                         self.MsgToPDF(
                             emailPathMsg + ".mht",
                             folderPathChild,
                             emailFullFileName + ".pdf",
                         )
-
+                        logger.info(f"Conversion of {emailId} succeeded.")
+                        logger.info(f"Initiating archive of attachments for {emailId}")
+                        if emailAttachmentNum > 0:
+                            logger.info(
+                                f"Initiating archiving of {emailId} attachments. Found {emailAttachmentNum} attachments."
+                            )
+                        else:
+                            logger.info(
+                                f"No attachments found for this email. Skipping attachment archive operation."
+                            )
                         # * Attachments
                         for idx, atch in enumerate(email.Attachments):
                             atchPathMsg = os.path.join(
@@ -184,7 +195,9 @@ class AppController:
                                 f"A{idx+1}",
                                 atchPathMsg.replace("/", "\\"),
                             ]
+                            logger.info(f"Archived attachment A{idx+1} @ {atchPathMsg}")
                         # * update progress bar
+                        logger.info(f"{emailAttachmentNum} attachments archived.")
                         if (idx + 1) != numEmails or numEmails == 1:
                             self.view.pb["value"] = pb_d * (idx + 1)
                         else:
@@ -192,7 +205,7 @@ class AppController:
                         self.view.update_idletasks()
                     except Exception as e:
                         logger.warning(
-                            f"Failed to save email {idx+offsetidx} due to Exception =  {e} @ {e.__traceback__.tb_lineno}"
+                            f"Failed to save email/attachments {idx+offsetidx} due to Exception =  {e} @ {e.__traceback__.tb_lineno}"
                         )
                         continue
                 # * Update and save masterlist
@@ -238,6 +251,7 @@ class AppController:
             doc = self.objWord.Documents.Open(docpath)
             doc.SaveAs(os.path.join(fpath, fname), FileFormat=pdfFileFormatCode)
         except Exception as e:
+            logger.error(f"Failed to convert {fname} to PDF due to exception: {e}")
             raise RuntimeError(f"Failed to convert {fname} to PDF. Error: {e}")
         finally:
             doc.Close()
